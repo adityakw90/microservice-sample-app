@@ -1,0 +1,159 @@
+version: "3.8"
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:18-alpine
+    container_name: microservice-postgres
+    environment:
+      POSTGRES_DB: microservice_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # pgadmin
+  pgadmin:
+    container_name: microservice-pgadmin
+    hostname: microservice-pgadmin
+    image: dpage/pgadmin4
+    restart: always
+    environment:
+      PGADMIN_DEFAULT_EMAIL: "admin@localhost.id"
+      PGADMIN_DEFAULT_PASSWORD: "password"
+      PGADMIN_CONFIG_ENHANCED_COOKIE_PROTECTION: "False"
+    ports:
+      - "5050:80"
+    depends_on:
+      - postgres
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+
+  # Redis Cache
+  redis:
+    image: redis:8.4-alpine
+    container_name: microservice-redis
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # RabbitMQ Message Broker
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: microservice-rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # User Service (gRPC)
+  #
+  # Build instructions:
+  # Run: ./scripts/build-service-user.sh
+  #
+  # Or build manually:
+  # 1. Copy proto files: cp -r ../../../service-user/service-user-proto/proto ./services/service-user/
+  # 2. Build: docker build -t service-user:latest ./services/service-user
+  service-user:
+    image: service-user:latest
+    container_name: service-user
+    environment:
+      # Database
+      DATABASE_URL: postgres://postgres:postgres@postgres:5432/service_user?sslmode=disable
+      # Cache
+      REDIS_HOST: redis:6379
+      # Message Queue (optional)
+      RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672/
+      # Server
+      GRPC_PORT: 50051
+      # Security
+      JWT_SECRET: dev-secret-key-change-in-production
+      PASSWORD_HASHER: argon2
+      PIN_HASHER: argon2
+      # Lockout policy
+      LOCKOUT_MAX_ATTEMPTS: 5
+      LOCKOUT_DURATION: 30m
+    ports:
+      - "50051:50051"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "nc -z localhost 50051 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  # API Gateway (BFF)
+  api-gateway:
+    build:
+      context: ./api-gateway
+      dockerfile: Dockerfile
+    container_name: api-gateway
+    environment:
+      USER_SERVICE_ADDRESS: service-user:50051
+      SERVER_PORT: 8080
+    ports:
+      - "8080:8080"
+    depends_on:
+      service-user:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "-O", "/dev/null", "http://localhost:8080/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  # Frontend (Vue 3)
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: frontend
+    ports:
+      - "8000:80"
+    depends_on:
+      api-gateway:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "wget",
+          "--no-verbose",
+          "--tries=1",
+          "--spider",
+          "http://localhost:80",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+volumes:
+  postgres_data:
+  pgadmin_data:

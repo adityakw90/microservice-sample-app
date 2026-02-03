@@ -44,3 +44,6 @@ logs/
 # Temporary
 *.tmp
 *.temp
+
+# Project
+.playwright-mcp

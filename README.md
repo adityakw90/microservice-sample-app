@@ -69,7 +69,6 @@ microservice-sample-app/
 │  └─ main.go
 │
 ├─ frontend/                 # Frontend application
-│  ├─ web/                   # Vue / React app
 │  └─ README.md
 │
 ├─ proto/                    # Shared gRPC contracts
@@ -99,8 +98,42 @@ This repository **does not reimplement** microservices.
 
 Instead, it consumes existing services such as:
 
-- `service-user`
-- `service-access-control`
+- `service-user` - User management and authentication
+- `service-access-control` - IAM and permissions
+
+### Service User Showcase
+
+The current showcase demonstrates integration with the **service-user** microservice, which provides:
+
+**User Management:**
+
+- CRUD operations for users
+- User profile management
+- User device tracking and revocation
+
+**Authentication:**
+
+- Login with username or email
+- JWT token issuance (access + refresh tokens)
+- Token validation
+- PIN verification for sensitive actions
+
+**gRPC Endpoints:**
+
+- `UserService.List` - List users with pagination and filtering
+- `UserService.Get` - Get user by UID
+- `UserService.Add` - Create new user
+- `UserService.Update` - Update user details
+- `UserService.Delete` - Delete user
+- `UserService.GetProfile` - Get user profile
+- `UserService.UpdateProfile` - Update user profile
+- `UserService.ListDevice` - List user devices
+- `UserService.RevokeDevice` - Revoke a device
+
+- `AuthService.Auth` - Authenticate user
+- `AuthService.RefreshToken` - Refresh access token
+- `AuthService.ValidateToken` - Validate access token
+- `AuthService.VerifyPin` - Verify user PIN
 
 Each service is expected to be:
 
@@ -127,11 +160,42 @@ The frontend never communicates directly with gRPC services.
 
 ## Frontend
 
-The frontend application:
+The frontend application is a **Vue 3 SPA** built with TypeScript:
 
-- Communicates only with the API Aggregator
-- Is unaware of individual microservices
-- Treats the backend as a single logical system
+- **Communicates only with the API Aggregator** via HTTP/REST
+- **Is unaware of individual microservices** - treats backend as a single system
+- **JWT-based authentication** with automatic token refresh
+- **Pinia state management** for auth and data
+- **Modern component architecture** with Vue 3 Composition API
+
+### Frontend Features
+
+**Authentication:**
+- Login with username or email
+- JWT token management (access + refresh)
+- Automatic token refresh on expiration
+- Protected routes with auth guards
+
+**User Management:**
+- Browse users with pagination and search
+- Create new users
+- View user profiles with full details
+- Edit user information
+- Delete users
+
+**User Profile:**
+- View and edit personal profile
+- Device management (view and revoke)
+- Real-time profile updates
+
+### Frontend Tech Stack
+
+- **Vue 3** with Composition API
+- **TypeScript** for type safety
+- **Vite** for fast development and building
+- **Vue Router** for navigation
+- **Pinia** for state management
+- **Axios** for HTTP requests with interceptors
 
 This keeps frontend logic simple and backend evolution flexible.
 
@@ -142,7 +206,26 @@ This keeps frontend logic simple and backend evolution flexible.
 ### Prerequisites
 
 - Docker & Docker Compose
+- Go 1.23+ (for building service-user)
+- Node.js 20+ (for frontend development)
 - Make (optional)
+
+### Building service-user
+
+The service-user microservice requires proto files from the service-user-proto repository. Before running the stack, build the service-user Docker image:
+
+```bash
+# Option 1: Use the provided build script (recommended)
+./scripts/build-service-user.sh
+
+# Option 2: Manual build
+# 1. Copy proto files
+cp -r ../../../service-user/service-user-proto/proto ./services/service-user/
+# 2. Build Docker image
+docker build -t service-user:latest ./services/service-user
+```
+
+See `services/service-user/README.md` for more details.
 
 ### Running the Stack
 
@@ -152,12 +235,52 @@ docker-compose up -d
 
 This will start:
 
-- API Aggregator
-- All referenced microservices
-- PostgreSQL
-- Redis
-- RabbitMQ
-- Frontend
+- **Frontend** (port 80) - Vue 3 application
+- **API Gateway** (port 8080) - HTTP/REST entry point
+- **Service User** (port 50051) - User management gRPC service
+- **PostgreSQL** (port 5432) - Database
+- **Redis** (port 6379) - Cache
+- **RabbitMQ** (ports 5672, 15672) - Message broker
+
+### Accessing the Application
+
+Once the stack is running:
+
+- **Frontend**: http://localhost
+- **API Gateway**: http://localhost:8080
+- **API Docs**: See `api-gateway/README.md`
+- **RabbitMQ Management**: http://localhost:15672 (guest/guest)
+
+### Testing the API
+
+Once the stack is running, you can test the API:
+
+```bash
+# Health check
+curl http://localhost:8080/health
+
+# Create a user
+curl -X POST http://localhost:8080/api/v1/users \
+  -H "Content-Type: application/json" \
+  -d '{"username":"testuser","email":"test@example.com","password":"password123"}'
+
+# Login
+curl -X POST http://localhost:8080/api/v1/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"identifier":"testuser","identifier_type":"username","password":"password123"}'
+```
+
+### Frontend Development
+
+For local development of the frontend:
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+The frontend dev server will run on `http://localhost:3000` and proxy API requests to the API Gateway.
 
 ---
 
