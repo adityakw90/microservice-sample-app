@@ -12,11 +12,13 @@ import (
 
 	"github.com/gorilla/mux"
 
-	"github.com/adityakw90/microservice-sample-app/api-gateway/internal/client"
+	grpcAdapter "github.com/adityakw90/microservice-sample-app/api-gateway/adapter/secondary/grpc"
+	userHandler "github.com/adityakw90/microservice-sample-app/api-gateway/adapter/primary/http/httpHandler"
+	authHandler "github.com/adityakw90/microservice-sample-app/api-gateway/adapter/primary/http/httpHandler"
+	"github.com/adityakw90/microservice-sample-app/api-gateway/internal/application/user"
+	authApp "github.com/adityakw90/microservice-sample-app/api-gateway/internal/application/auth"
 	"github.com/adityakw90/microservice-sample-app/api-gateway/internal/config"
-	"github.com/adityakw90/microservice-sample-app/api-gateway/internal/handler"
 	httpMiddleware "github.com/adityakw90/microservice-sample-app/api-gateway/pkg/http"
-	"github.com/adityakw90/microservice-sample-app/api-gateway/internal/service"
 )
 
 func main() {
@@ -24,31 +26,39 @@ func main() {
 	cfg := config.Load()
 	log.Printf("Configuration: %s", cfg.String())
 
-	// Initialize user gRPC client
-	userClient, err := client.NewUserClient(client.Config{
-		ServiceAddress: cfg.UserServiceAddress,
-		DialTimeout:    cfg.UserServiceTimeout,
-	})
+	// === Secondary Adapters (Driven) ===
+	// Create gRPC client adapters (implements both UserClient and AuthClient)
+	log.Println("Initializing gRPC client adapters...")
+
+	userGrpcAdapter, authGrpcAdapter, err := grpcAdapter.NewUserClientAdapter(cfg.UserServiceAddress)
 	if err != nil {
-		log.Fatalf("Failed to create user client: %v", err)
+		log.Fatalf("Failed to create user gRPC adapter: %v", err)
 	}
-	defer userClient.Close()
 
-	// Initialize services
-	userSvc := service.NewUserService(userClient.UserService())
-	authSvc := service.NewAuthService(userClient.AuthService())
+	// === Application Services (Use Cases) ===
+	// Create application services that depend on port interfaces
+	log.Println("Initializing application services...")
 
-	// Initialize handlers
-	userHandler := handler.NewUserHandler(userSvc)
-	authHandler := handler.NewAuthHandler(authSvc)
+	userAppService := user.NewUserApplicationService(userGrpcAdapter)
+	authAppService := authApp.NewAuthApplicationService(authGrpcAdapter)
 
-	// Create router
+	// === Primary Adapters (Driving) ===
+	// Create HTTP handlers that use application services
+	log.Println("Initializing HTTP handlers...")
+
+	userHdlr := userHandler.NewUserHandler(userAppService)
+	authHdlr := authHandler.NewAuthHandler(authAppService)
+
+	// === Router Configuration ===
+	// Create router and register routes
+	log.Println("Registering routes...")
+
 	router := mux.NewRouter()
 
 	// Register API routes
 	api := router.PathPrefix("/api/v1").Subrouter()
-	userHandler.RegisterRoutes(api)
-	authHandler.RegisterRoutes(api)
+	userHdlr.RegisterRoutes(api)
+	authHdlr.RegisterRoutes(api)
 
 	// Health check endpoint (no auth required)
 	router.HandleFunc("/health", healthCheckHandler).Methods(http.MethodGet)
@@ -59,7 +69,8 @@ func main() {
 		httpMiddleware.CORSMiddleware,
 	)(router)
 
-	// Create server
+	// === Server Start ===
+	// Create and start HTTP server
 	srv := &http.Server{
 		Addr:         ":" + cfg.ServerPort,
 		Handler:      middlewareChain,
