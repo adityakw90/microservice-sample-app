@@ -7,6 +7,7 @@ import LoginView from '@/views/LoginView.vue'
 import ProfileView from '@/views/ProfileView.vue'
 import UserDetailView from '@/views/UserDetailView.vue'
 import ProtoTestView from '@/views/ProtoTestView.vue'
+import FilesView from '@/views/FilesView.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -65,6 +66,11 @@ const router = createRouter({
           path: 'proto-test',
           name: 'proto-test',
           component: ProtoTestView
+        },
+        {
+          path: 'files',
+          name: 'files',
+          component: FilesView
         }
       ]
     }
