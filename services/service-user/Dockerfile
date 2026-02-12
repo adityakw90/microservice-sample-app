@@ -8,6 +8,7 @@ WORKDIR /app
 
 # Copy the pre-built binary from build.sh
 COPY server .
+COPY config.yaml .
 
 # Expose gRPC port
 EXPOSE 50051

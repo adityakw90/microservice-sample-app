@@ -12,7 +12,7 @@ services:
     ports:
       - "5432:5432"
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - postgres_data:/var/lib/postgresql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 10s
@@ -24,7 +24,6 @@ services:
     container_name: microservice-pgadmin
     hostname: microservice-pgadmin
     image: dpage/pgadmin4
-    restart: always
     environment:
       PGADMIN_DEFAULT_EMAIL: "admin@localhost.id"
       PGADMIN_DEFAULT_PASSWORD: "password"
@@ -50,11 +49,11 @@ services:
 
   # RabbitMQ Message Broker
   rabbitmq:
-    image: rabbitmq:3-management-alpine
+    image: rabbitmq:4.2.3-management-alpine
     container_name: microservice-rabbitmq
     environment:
-      RABBITMQ_DEFAULT_USER: guest
-      RABBITMQ_DEFAULT_PASS: guest
+      RABBITMQ_DEFAULT_USER: rabbit
+      RABBITMQ_DEFAULT_PASS: password
     ports:
       - "5672:5672"
       - "15672:15672"
@@ -63,6 +62,35 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+
+  # Kafka
+  kafka:
+    container_name: microservice-kafka
+    hostname: microservice-kafka
+    image: confluentinc/cp-kafka:latest
+    ports:
+      - "9092:9092"
+      - "9094:9094"
+    environment:
+      # KRaft mode settings (no Zookeeper needed)
+      KAFKA_NODE_ID: "1"
+      KAFKA_PROCESS_ROLES: "controller,broker"
+      KAFKA_CONTROLLER_QUORUM_VOTERS: "1@microservice-kafka:9093"
+      # Listener configuration
+      KAFKA_LISTENERS: "PLAINTEXT://:9092,CONTROLLER://:9093"
+      KAFKA_ADVERTISED_LISTENERS: "PLAINTEXT://localhost:9092"
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: "CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT"
+      KAFKA_CONTROLLER_LISTENER_NAMES: "CONTROLLER"
+      KAFKA_INTER_BROKER_LISTENER_NAME: "PLAINTEXT"
+      # Other settings
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+      KAFKA_LOG_RETENTION_HOURS: "1"
+      KAFKA_LOG_SEGMENT_BYTES: "1073741824"
+      KAFKA_LOG_RETENTION_CHECK_INTERVAL_MS: "300000"
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: "1"
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: "1"
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: "1"
+      CLUSTER_ID: "MkU3OEVBNTcwNTJENDM2Qk"
 
   # User Service (gRPC)
   #
@@ -75,22 +103,6 @@ services:
   service-user:
     image: service-user:latest
     container_name: service-user
-    environment:
-      # Database
-      DATABASE_URL: postgres://postgres:postgres@postgres:5432/service_user?sslmode=disable
-      # Cache
-      REDIS_HOST: redis:6379
-      # Message Queue (optional)
-      RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672/
-      # Server
-      GRPC_PORT: 50051
-      # Security
-      JWT_SECRET: dev-secret-key-change-in-production
-      PASSWORD_HASHER: argon2
-      PIN_HASHER: argon2
-      # Lockout policy
-      LOCKOUT_MAX_ATTEMPTS: 5
-      LOCKOUT_DURATION: 30m
     ports:
       - "50051:50051"
     depends_on:
@@ -114,7 +126,8 @@ services:
       dockerfile: Dockerfile
     container_name: api-gateway
     environment:
-      USER_SERVICE_ADDRESS: service-user:50051
+      # USER_SERVICE_ADDRESS: service-user:50051
+      USER_SERVICE_ADDRESS: 192.168.100.2:50051
       SERVER_PORT: 8080
     ports:
       - "8080:8080"
@@ -122,7 +135,16 @@ services:
       service-user:
         condition: service_started
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "-O", "/dev/null", "http://localhost:8080/health"]
+      test:
+        [
+          "CMD",
+          "wget",
+          "--no-verbose",
+          "--tries=1",
+          "-O",
+          "/dev/null",
+          "http://localhost:8080/health",
+        ]
       interval: 10s
       timeout: 5s
       retries: 5

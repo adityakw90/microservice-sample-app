@@ -1,0 +1,154 @@
+app:
+  code: SUS
+  name: Service User
+  env: development
+  debug: true
+  ip: 0.0.0.0
+  port: 50051
+
+instance:
+  host: service-user
+  name: service-user
+
+database:
+  host: postgres
+  port: 5432
+  user: postgres
+  password: postgres
+  name: service_user
+  sslmode: disable
+  timezone: UTC
+  min_conns: 1
+  min_idle_conns: 0
+  max_conns: 4
+  max_conn_idle_time: 5m
+  max_conn_lifetime: 1h
+  max_conn_lifetime_jitter: 1m
+  health_check_period: 1m
+
+redis:
+  host: redis
+  port: 6379
+  user: ""
+  password: ""
+  db: 0
+  pool_size: 10
+  pool_timeout: 5s
+  connection_idle_min: 10
+
+kafka:
+  brokers:
+    - kafka:9092
+  compression: snappy
+  max_message_bytes: 1048576
+  timeout_seconds: 5
+  reconnect_interval_seconds: 1
+  reconnect_max_attempts: 0
+
+rabbitmq:
+  host: rabbitmq
+  port: 5672
+  user: rabbit
+  password: password
+  vhost: /
+  reconnect_interval: 1s
+  reconnect_max_attempts: 0
+
+event_publisher:
+  enabled: true
+  batch_size: 50
+  batch_timeout: 5s
+  queue_size: 1000
+  worker_count: 2
+  max_retries: 3 # for async publisher
+  retry_interval: 2s # for async publisher
+  http:
+    enabled: false
+    url: ""
+    timeout: 5s
+  redis:
+    enabled: false
+    name: "user-service.events"
+  kafka:
+    enabled: false
+    topic: user-service-events
+  rabbitmq:
+    enabled: true
+    durable: true
+    exchange: user-service
+    exchange_type: topic
+    routing_key_prefix: user.service.
+    confirm_timeout: 30s
+    max_retries: 5
+    retry_interval: 1s
+    queue_enabled: true
+    queue_name: "user-service.queue"
+    queue_durable: true
+    queue_auto_delete: false
+    queue_exclusive: false
+
+monitoring:
+  service_name: service-user
+  environment: development
+  logger:
+    level: info
+  tracer:
+    provider: stdout
+    provider_host: localhost
+    provider_port: 4317
+    sample_ratio: 1
+  metric:
+    provider: stdout
+    provider_host: localhost
+    provider_port: 9411
+
+observer:
+  auth: true
+  device: true
+  pin: true
+  user: true
+  userfile: true
+
+security:
+  login_tracker:
+    backend: redis
+    lockout_counter_ttl: 30m
+    lockout_duration: 15m
+    lockout_threshold: 5
+  pin_tracker:
+    backend: redis
+    lockout_counter_ttl: 30m
+    lockout_duration: 15m
+    lockout_threshold: 3
+  rate_limiter:
+    backend: redis
+    limit: 100
+    window_size: 1h
+
+jwt:
+  secret_key: your-256-bit-secret-key-for-jwt-signing
+  access_expiry: 5m
+  refresh_expiry: 168h
+
+password_hasher:
+  type: argon2
+  cost: 10
+  salt: ""
+  memory: 65536
+  iterations: 2
+  parallelism: 1
+  salt_length: 16
+  key_length: 32
+
+pin_hasher:
+  type: argon2
+  cost: 14
+  salt: ""
+  memory: 65536
+  iterations: 4
+  parallelism: 1
+  salt_length: 16
+  key_length: 32
+
+event_publisher_source: service-user
+event_publisher_timeout_seconds: 5
