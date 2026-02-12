@@ -3,7 +3,6 @@ package httpHandler
 import (
 	"encoding/json"
 	"io"
-	"mime/multipart"
 	"net/http"
 	"strconv"
 
