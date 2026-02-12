@@ -300,3 +300,8 @@ func (a *UserClientAdapter) HandleGoogleOAuth(ctx context.Context, code, redirec
 	}
 	return grpcAdapter.TokensFromProto(resp), nil
 }
+
+// GetConn returns the underlying gRPC connection.
+func (a *UserClientAdapter) GetConn() *grpc.ClientConn {
+	return a.conn
+}

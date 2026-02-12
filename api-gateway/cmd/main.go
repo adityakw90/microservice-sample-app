@@ -17,6 +17,7 @@ import (
 	authHandler "github.com/adityakw90/microservice-sample-app/api-gateway/adapter/primary/http/httpHandler"
 	"github.com/adityakw90/microservice-sample-app/api-gateway/internal/application/user"
 	authApp "github.com/adityakw90/microservice-sample-app/api-gateway/internal/application/auth"
+	userFileApp "github.com/adityakw90/microservice-sample-app/api-gateway/internal/application/user_file"
 	"github.com/adityakw90/microservice-sample-app/api-gateway/internal/config"
 	httpMiddleware "github.com/adityakw90/microservice-sample-app/api-gateway/pkg/http"
 )
@@ -42,12 +43,18 @@ func main() {
 	userAppService := user.NewUserApplicationService(userGrpcAdapter)
 	authAppService := authApp.NewAuthApplicationService(authGrpcAdapter)
 
+	// Get the underlying connection for UserFile gRPC adapter
+	userGrpcAdapterWithConn := userGrpcAdapter.(*grpcAdapter.UserClientAdapter)
+	userFileGrpcAdapter := grpcAdapter.NewUserFileClientAdapter(userGrpcAdapterWithConn.GetConn())
+	userFileAppService := userFileApp.NewUserFileApplicationService(userFileGrpcAdapter)
+
 	// === Primary Adapters (Driving) ===
 	// Create HTTP handlers that use application services
 	log.Println("Initializing HTTP handlers...")
 
 	userHdlr := userHandler.NewUserHandler(userAppService)
 	authHdlr := authHandler.NewAuthHandler(authAppService)
+	userFileHdlr := authHandler.NewUserFileHandler(userFileAppService)
 
 	// === Router Configuration ===
 	// Create router and register routes
@@ -59,6 +66,7 @@ func main() {
 	api := router.PathPrefix("/api/v1").Subrouter()
 	userHdlr.RegisterRoutes(api)
 	authHdlr.RegisterRoutes(api)
+	userFileHdlr.RegisterRoutes(api)
 
 	// Health check endpoint (no auth required)
 	router.HandleFunc("/health", healthCheckHandler).Methods(http.MethodGet)
