@@ -23,4 +23,4 @@ require (
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20251029180050-ab9386a59fda // indirect
 )
 
-replace github.com/adityakw90/service-user-proto => ../../service-user/service-user-proto
+replace github.com/adityakw90/service-user-proto => /media/adit/SSD/project/MTAmedia/repo/service-user/service-user-proto

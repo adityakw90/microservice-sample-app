@@ -93,3 +93,13 @@ func (s *AuthApplicationService) VerifyPin(ctx context.Context, param *params.Ve
 
 	return valid, nil
 }
+
+// GoogleOAuth initiates Google OAuth flow and returns authorization URL.
+func (s *AuthApplicationService) GoogleOAuth(ctx context.Context, redirectURI string) (string, error) {
+	return s.authClient.GoogleOAuth(ctx, redirectURI)
+}
+
+// HandleGoogleOAuth handles Google OAuth callback and returns tokens.
+func (s *AuthApplicationService) HandleGoogleOAuth(ctx context.Context, code, redirectURI string) (*model.Tokens, error) {
+	return s.authClient.HandleGoogleOAuth(ctx, code, redirectURI)
+}

@@ -21,4 +21,10 @@ type AuthClient interface {
 
 	// VerifyPin verifies a user PIN for sensitive actions.
 	VerifyPin(ctx context.Context, param *params.VerifyPinParam) (bool, error)
+
+	// GoogleOAuth initiates Google OAuth flow and returns authorization URL.
+	GoogleOAuth(ctx context.Context, redirectURI string) (authorizationURL string, err error)
+
+	// HandleGoogleOAuth handles Google OAuth callback and returns tokens.
+	HandleGoogleOAuth(ctx context.Context, code, redirectURI string) (*model.Tokens, error)
 }

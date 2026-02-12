@@ -18,6 +18,7 @@ A modern Vue 3 frontend application that demonstrates microservice architecture 
 - Automatic token refresh on 401 responses
 - Protected routes with authentication guards
 - Login/logout functionality
+- Google OAuth integration for single sign-on
 
 ### User Management
 - User listing with pagination and search
@@ -25,6 +26,15 @@ A modern Vue 3 frontend application that demonstrates microservice architecture 
 - Edit user details
 - Delete users
 - View user profiles
+- User detail view with tabbed interface
+
+### File Management
+- File listing with grid/list views
+- Upload files with drag-and-drop (max 10MB)
+- Edit file name and visibility (public/private)
+- Delete files
+- Filter files by type (image, document, video)
+- User files tab in user detail view
 
 ### User Profile
 - View and edit personal profile
@@ -99,6 +109,8 @@ The frontend communicates with the backend through the API Gateway:
 - `POST /api/v1/auth/refresh` - Refresh access token
 - `POST /api/v1/auth/validate` - Validate access token
 - `POST /api/v1/auth/verify-pin` - Verify PIN
+- `GET /api/v1/auth/google` - Initiate Google OAuth flow
+- `GET /api/v1/auth/google/callback` - Handle Google OAuth callback
 
 **Users:**
 - `GET /api/v1/users` - List users
@@ -111,6 +123,13 @@ The frontend communicates with the backend through the API Gateway:
 - `GET /api/v1/users/{uid}/devices` - List user devices
 - `DELETE /api/v1/users/{uid}/devices/{deviceUid}` - Revoke device
 
+**Files:**
+- `GET /api/v1/files` - List user files with pagination
+- `GET /api/v1/files/{uid}` - Get single file details
+- `POST /api/v1/files` - Upload file (multipart/form-data)
+- `PATCH /api/v1/files/{uid}` - Update file (name, visibility)
+- `DELETE /api/v1/files/{uid}` - Delete file
+
 ## State Management
 
 ### Auth Store
@@ -120,11 +139,30 @@ Manages authentication state:
 - `user` - Authenticated user information
 - `isAuthenticated` - Computed auth status
 
+### Files Store
+Manages file state:
+- `files` - Array of user files
+- `loading` - Loading state indicator
+- `error` - Error message if any
+- `pagination` - Current pagination info
+- `isEmpty` - Computed property for empty state
+- `hasMore` - Computed property for pagination
+
 ### Actions
+
+**Auth Store:**
 - `login(identifier, identifier_type, password)` - Authenticate user
 - `validateToken()` - Validate current token
 - `refreshAccessToken()` - Refresh expired token
 - `logout()` - Clear auth state
+- `handleGoogleOAuth()` - Initiate Google OAuth flow
+
+**Files Store:**
+- `fetchFiles(params)` - Fetch files with pagination and filters
+- `fetchFile(uid)` - Fetch single file details
+- `uploadFile(file, visibility)` - Upload new file
+- `updateFile(uid, data)` - Update file name and visibility
+- `deleteFile(uid)` - Delete a file
 
 ## Docker Deployment
 
@@ -185,6 +223,36 @@ const { uid } = await usersApi.createUser({
   email: 'john@example.com',
   password: 'securepassword'
 })
+```
+
+### Using Files Store
+
+```typescript
+import { useFilesStore } from '@/stores/files'
+
+const filesStore = useFilesStore()
+
+// Fetch files
+await filesStore.fetchFiles({
+  page: 1,
+  limit: 20,
+  file_type: 'image'
+})
+
+// Upload file
+const file = new FormData()
+file.append('file', fileObject)
+file.append('visibility', '0')
+await filesStore.uploadFile(file, 'private')
+
+// Update file
+await filesStore.updateFile(fileUid, {
+  file_name: 'New Name.jpg',
+  visibility: 1
+})
+
+// Delete file
+await filesStore.deleteFile(fileUid)
 ```
 
 ## Browser Support

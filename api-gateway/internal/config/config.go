@@ -24,6 +24,9 @@ type Config struct {
 	CORSAllowMethods     string
 	CORSAllowHeaders     string
 	CORSAllowCredentials bool
+
+	// OAuth configuration
+	FrontendRedirectURI string
 }
 
 // Load loads configuration from environment variables with defaults
@@ -39,6 +42,7 @@ func Load() *Config {
 		CORSAllowMethods:    getEnv("CORS_ALLOW_METHODS", "GET, POST, PUT, PATCH, DELETE, OPTIONS"),
 		CORSAllowHeaders:    getEnv("CORS_ALLOW_HEADERS", "Content-Type, Authorization"),
 		CORSAllowCredentials: getBoolEnv("CORS_ALLOW_CREDENTIALS", false),
+		FrontendRedirectURI: getEnv("FRONTEND_REDIRECT_URI", "http://localhost:3000"),
 	}
 }
 

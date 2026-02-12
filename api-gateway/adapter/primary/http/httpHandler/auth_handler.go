@@ -2,7 +2,9 @@ package httpHandler
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
+	"os"
 
 	"github.com/gorilla/mux"
 
@@ -33,6 +35,8 @@ func (h *AuthHandler) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/auth/refresh", h.RefreshToken).Methods(http.MethodPost)
 	r.HandleFunc("/auth/validate", h.ValidateToken).Methods(http.MethodPost)
 	r.HandleFunc("/auth/verify-pin", h.VerifyPin).Methods(http.MethodPost)
+	r.HandleFunc("/auth/google", h.GoogleOAuth).Methods(http.MethodGet)
+	r.HandleFunc("/auth/google/callback", h.GoogleOAuthCallback).Methods(http.MethodGet)
 }
 
 // Login handles POST /api/v1/auth/login.
@@ -154,4 +158,69 @@ func (h *AuthHandler) VerifyPin(w http.ResponseWriter, r *http.Request) {
 	}
 
 	respondJSON(w, http.StatusOK, map[string]bool{"valid": valid})
+}
+
+// GoogleOAuth handles GET /api/v1/auth/google.
+func (h *AuthHandler) GoogleOAuth(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	// Build redirect URI from request
+	redirectURI := fmt.Sprintf("%s://%s/api/v1/auth/google/callback",
+		getScheme(r), r.Host)
+
+	// Get authorization URL from service
+	authURL, err := h.authService.GoogleOAuth(ctx, redirectURI)
+	if err != nil {
+		respondError(w, http.StatusInternalServerError, "Failed to initiate OAuth")
+		return
+	}
+
+	// Redirect to Google OAuth
+	http.Redirect(w, r, authURL, http.StatusFound)
+}
+
+// GoogleOAuthCallback handles GET /api/v1/auth/google/callback.
+func (h *AuthHandler) GoogleOAuthCallback(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	// Get code and state from query params
+	code := r.URL.Query().Get("code")
+	if code == "" {
+		respondError(w, http.StatusBadRequest, "Missing authorization code")
+		return
+	}
+
+	// Build redirect URI
+	redirectURI := fmt.Sprintf("%s://%s/api/v1/auth/google/callback",
+		getScheme(r), r.Host)
+
+	// Handle OAuth callback
+	tokens, err := h.authService.HandleGoogleOAuth(ctx, code, redirectURI)
+	if err != nil {
+		// Redirect to login with error
+		http.Redirect(w, r, "/login?error=oauth_failed", http.StatusFound)
+		return
+	}
+
+	// Get frontend URL from config or use default
+	frontendURL := os.Getenv("FRONTEND_REDIRECT_URI")
+	if frontendURL == "" {
+		frontendURL = "http://localhost:3000"
+	}
+
+	// Redirect to frontend with tokens
+	targetURL := fmt.Sprintf("%s/login?token=%s&refresh=%s",
+		frontendURL, tokens.AccessToken, tokens.RefreshToken)
+	http.Redirect(w, r, targetURL, http.StatusFound)
+}
+
+// getScheme determines the request scheme (http or https).
+func getScheme(r *http.Request) string {
+	if r.TLS != nil {
+		return "https"
+	}
+	if scheme := r.Header.Get("X-Forwarded-Proto"); scheme != "" {
+		return scheme
+	}
+	return "http"
 }

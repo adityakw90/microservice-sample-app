@@ -277,3 +277,31 @@ func (a *UserClientAdapter) VerifyPin(ctx context.Context, param *params.VerifyP
 	}
 	return resp.Valid, nil
 }
+
+// GoogleOAuth initiates Google OAuth flow and returns authorization URL.
+func (a *UserClientAdapter) GoogleOAuth(ctx context.Context, redirectURI string) (string, error) {
+	resp, err := a.authClient.GoogleOAuth(ctx, &authpb.GoogleOAuthRequest{
+		RedirectUri: redirectURI,
+	})
+	if err != nil {
+		return "", fmt.Errorf("failed to initiate Google OAuth: %w", err)
+	}
+	return resp.AuthorizationUrl, nil
+}
+
+// HandleGoogleOAuth handles Google OAuth callback and returns tokens.
+func (a *UserClientAdapter) HandleGoogleOAuth(ctx context.Context, code, redirectURI string) (*model.Tokens, error) {
+	resp, err := a.authClient.HandleGoogleOAuth(ctx, &authpb.HandleGoogleOAuthRequest{
+		Code:        code,
+		RedirectUri: redirectURI,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to handle Google OAuth callback: %w", err)
+	}
+	return grpcAdapter.TokensFromProto(resp), nil
+}
+
+// GetConn returns the underlying gRPC connection.
+func (a *UserClientAdapter) GetConn() *grpc.ClientConn {
+	return a.conn
+}

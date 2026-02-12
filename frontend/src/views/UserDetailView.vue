@@ -26,41 +26,25 @@
           </div>
         </div>
 
-        <div class="user-sections">
-          <div class="section">
-            <h2>Account Information</h2>
-            <div class="info-grid">
-              <div class="info-item">
-                <span class="label">User ID</span>
-                <span class="value">{{ user.uid }}</span>
-              </div>
-              <div class="info-item">
-                <span class="label">Username</span>
-                <span class="value">{{ user.username }}</span>
-              </div>
-              <div class="info-item">
-                <span class="label">Email</span>
-                <span class="value">{{ user.email }}</span>
-              </div>
-              <div class="info-item">
-                <span class="label">Status</span>
-                <span class="value">{{ user.status === 1 ? 'Active' : 'Inactive' }}</span>
-              </div>
-              <div class="info-item">
-                <span class="label">Created</span>
-                <span class="value">{{ formatDate(user.created_at) }}</span>
-              </div>
-              <div class="info-item">
-                <span class="label">Updated</span>
-                <span class="value">{{ formatDate(user.updated_at) }}</span>
-              </div>
-            </div>
-          </div>
+        <!-- Tabs -->
+        <div class="tabs-container">
+          <button
+            v-for="tab in tabs"
+            :key="tab.key"
+            :class="['tab-button', { active: activeTab === tab.key }]"
+            @click="activeTab = tab.key"
+          >
+            <component :is="tab.icon" class="tab-icon" />
+            <span>{{ tab.label }}</span>
+          </button>
+        </div>
 
-          <div class="section">
-            <h2>Profile</h2>
+        <!-- Tab Content -->
+        <div class="tab-content">
+          <!-- Profile Tab -->
+          <div v-if="activeTab === 'profile'" class="tab-panel">
             <div v-if="profileLoading" class="loading-small">Loading profile...</div>
-            <div v-else-if="profile" class="profile-card">
+            <div v-else-if="profile" class="profile-section">
               <div class="profile-info">
                 <p><strong>Full Name:</strong> {{ fullName }}</p>
                 <p><strong>Bio:</strong> {{ profile.bio || 'No bio provided' }}</p>
@@ -71,8 +55,13 @@
             </div>
           </div>
 
-          <div class="section">
-            <h2>Devices</h2>
+          <!-- Files Tab -->
+          <div v-if="activeTab === 'files'" class="tab-panel">
+            <UserFilesTab :user-uid="user.uid" />
+          </div>
+
+          <!-- Devices Tab -->
+          <div v-if="activeTab === 'devices'" class="tab-panel">
             <div v-if="devicesLoading" class="loading-small">Loading devices...</div>
             <div v-else-if="devices.length === 0" class="empty-devices">
               <p>No devices registered</p>
@@ -103,6 +92,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { usersApi, type User, type Profile, type Device } from '@/services/api'
+import UserFilesTab from '@/components/User/UserFilesTab.vue'
 
 const route = useRoute()
 
@@ -114,6 +104,41 @@ const devicesLoading = ref(false)
 const user = ref<User | null>(null)
 const profile = ref<Profile | null>(null)
 const devices = ref<Device[]>([])
+
+const activeTab = ref<'profile' | 'files' | 'devices'>('profile')
+
+// Tab definitions with inline icon components
+const ProfileIcon = {
+  template: `
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4-4v6c0 6 8-10l4 4 4 4 4 2H5a4 4 0 00-4-4V5a4 4 0 012-4h11"/>
+      <circle cx="12" cy="7" r="4"/>
+    </svg>
+  `
+}
+
+const FilesIcon = {
+  template: `
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <path d="M9 13h6m-3-3v6m-9 1V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z"/>
+    </svg>
+  `
+}
+
+const DevicesIcon = {
+  template: `
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <rect x="5" y="2" width="14" height="20" rx="2" ry="2"/>
+      <line x1="12" y1="6" x2="12" y2="18" stroke-width="2"/>
+    </svg>
+  `
+}
+
+const tabs = [
+  { key: 'profile', label: 'Profile', icon: ProfileIcon },
+  { key: 'files', label: 'Files', icon: FilesIcon },
+  { key: 'devices', label: 'Devices', icon: DevicesIcon }
+]
 
 const fullName = computed(() => {
   if (profile.value) {
@@ -177,6 +202,7 @@ onMounted(() => {
 .user-detail-view {
   max-width: 900px;
   margin: 0 auto;
+  padding: 2rem;
 }
 
 .loading {
@@ -192,7 +218,7 @@ onMounted(() => {
 }
 
 .back-link {
-  margin-bottom: 1.5rem;
+  padding-bottom: 1rem;
 }
 
 .back-link a {
@@ -231,103 +257,126 @@ onMounted(() => {
   justify-content: center;
   font-size: 2.5rem;
   font-weight: bold;
+  color: #667eea;
   border: 4px solid rgba(255,255,255,0.3);
 }
 
 .user-info h1 {
-  margin: 0 0 0.5rem 0;
+  margin: 0;
   font-size: 2rem;
+  color: white;
 }
 
 .email {
-  margin: 0 0 1rem 0;
+  margin: 0.5rem 0 0;
   opacity: 0.9;
+  color: white;
 }
 
 .status-badge {
   display: inline-block;
-  padding: 0.25rem 0.75rem;
-  border-radius: 12px;
+  padding: 0.5rem 1rem;
+  border-radius: 20px;
   font-size: 0.85rem;
   font-weight: 600;
+  background: rgba(255,255,255,0.2);
 }
 
 .status-badge.active {
-  background-color: #27ae60;
+  background: #27ae60;
 }
 
 .status-badge.inactive {
-  background-color: #95a5a6;
+  background: #95a5a6;
 }
 
-.user-sections {
-  padding: 2rem;
+.tabs-container {
+  display: flex;
+  gap: 0.5rem;
+  padding: 0 2rem;
+  border-bottom: 1px solid #e5e7eb;
 }
 
-.section {
-  margin-bottom: 2rem;
-}
-
-.section h2 {
-  margin: 0 0 1.5rem 0;
-  color: #2c3e50;
-  padding-bottom: 0.5rem;
-  border-bottom: 2px solid #ecf0f1;
-}
-
-.info-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-  gap: 1rem;
-}
-
-.info-item {
-  background: #f8f9fa;
-  padding: 1rem;
-  border-radius: 8px;
-}
-
-.info-item .label {
-  display: block;
+.tab-button {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  color: #64748b;
   font-weight: 500;
-  color: #7f8c8d;
-  margin-bottom: 0.25rem;
-  font-size: 0.9rem;
+  transition: all 0.2s;
 }
 
-.info-item .value {
-  color: #2c3e50;
-  font-size: 1.1rem;
+.tab-button:hover {
+  color: #667eea;
+}
+
+.tab-button.active {
+  border-bottom-color: #667eea;
+  color: #667eea;
+}
+
+.tab-icon {
+  width: 20px;
+  height: 20px;
+}
+
+.tab-content {
+  padding: 2rem 0 0;
+  min-height: 300px;
+}
+
+.tab-panel {
+  animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .loading-small {
   text-align: center;
-  padding: 1rem;
+  padding: 2rem;
   color: #7f8c8d;
 }
 
-.profile-card,
-.empty-profile,
-.empty-devices {
-  background: #f8f9fa;
-  padding: 1.5rem;
-  border-radius: 8px;
-  text-align: center;
+.profile-section {
+  padding: 1rem;
 }
 
 .profile-info p {
-  margin: 0.5rem 0;
+  margin-bottom: 1rem;
+  line-height: 1.6;
   color: #2c3e50;
+}
+
+.empty-profile,
+.empty-devices {
+  text-align: center;
+  padding: 3rem;
+  color: #7f8c8d;
 }
 
 .devices-list {
   display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
   gap: 1rem;
 }
 
 .device-card {
   background: #f8f9fa;
-  padding: 1rem;
+  padding: 1.5rem;
   border-radius: 8px;
   display: flex;
   justify-content: space-between;
@@ -337,7 +386,7 @@ onMounted(() => {
 .device-name {
   font-weight: 600;
   color: #2c3e50;
-  margin-bottom: 0.25rem;
+  margin-bottom: 1rem;
 }
 
 .device-details p {
@@ -356,6 +405,7 @@ onMounted(() => {
   padding: 0.25rem 0.75rem;
   border-radius: 12px;
   font-size: 0.85rem;
+  font-weight: 600;
 }
 
 .revoked-badge {
@@ -364,6 +414,7 @@ onMounted(() => {
   padding: 0.25rem 0.75rem;
   border-radius: 12px;
   font-size: 0.85rem;
+  font-weight: 600;
 }
 
 .btn {
@@ -388,7 +439,12 @@ onMounted(() => {
     text-align: center;
   }
 
-  .info-grid {
+  .user-avatar {
+    width: 60px;
+    height: 60px;
+  }
+
+  .devices-list {
     grid-template-columns: 1fr;
   }
 }

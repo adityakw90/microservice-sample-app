@@ -86,6 +86,32 @@ type SuccessResponse struct {
 	Success bool `json:"success"`
 }
 
+// ThumbnailResponse represents a file thumbnail in HTTP responses.
+type ThumbnailResponse struct {
+	UID string `json:"uid"`
+	URL string `json:"url"`
+}
+
+// UserFileResponse represents a user file in HTTP responses.
+type UserFileResponse struct {
+	UID        string             `json:"uid"`
+	UserUID    string             `json:"user_uid"`
+	FileType   string             `json:"file_type"`
+	FileName   string             `json:"file_name"`
+	FilePath   string             `json:"file_path"`
+	MimeType   string             `json:"mime_type"`
+	SizeBytes  int64              `json:"size_bytes"`
+	Visibility int32              `json:"visibility"`
+	CreatedAt  string             `json:"created_at"`
+	Thumbnail  *ThumbnailResponse  `json:"thumbnail,omitempty"`
+}
+
+// UserFilesResponse represents a paginated list of files in HTTP responses.
+type UserFilesResponse struct {
+	Files []UserFileResponse `json:"files"`
+	Meta  MetaResponse       `json:"meta"`
+}
+
 // UserFromDomain converts a domain User to HTTP response.
 func UserFromDomain(u *model.User) UserResponse {
 	return UserResponse{
@@ -191,4 +217,40 @@ func formatTimePtr(tp *time.Time) string {
 		return ""
 	}
 	return formatTime(*tp)
+}
+
+// UserFileFromDomain converts domain UserFile to HTTP response.
+func UserFileFromDomain(f *model.UserFile) UserFileResponse {
+	resp := UserFileResponse{
+		UID:        f.UID,
+		UserUID:    f.UserUID,
+		FileType:   f.FileType,
+		FileName:   f.FileName,
+		FilePath:   f.FilePath,
+		MimeType:   f.MimeType,
+		SizeBytes:  f.SizeBytes,
+		Visibility: f.Visibility,
+		CreatedAt:  formatTime(f.CreatedAt),
+	}
+
+	if f.Thumbnail != nil {
+		resp.Thumbnail = &ThumbnailResponse{
+			UID: f.Thumbnail.UID,
+			URL: f.Thumbnail.URL,
+		}
+	}
+
+	return resp
+}
+
+// UserFilesFromDomain converts domain UserFiles to HTTP response.
+func UserFilesFromDomain(files *model.UserFiles) UserFilesResponse {
+	fileResp := make([]UserFileResponse, len(files.Items))
+	for i, f := range files.Items {
+		fileResp[i] = UserFileFromDomain(&f)
+	}
+	return UserFilesResponse{
+		Files: fileResp,
+		Meta:  MetaFromDomain(files.Meta),
+	}
 }
