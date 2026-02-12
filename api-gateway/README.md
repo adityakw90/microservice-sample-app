@@ -28,6 +28,11 @@ User Service
 - `POST /api/v1/auth/validate` - Validate access token
 - `POST /api/v1/auth/verify-pin` - Verify user PIN
 
+#### OAuth
+
+- `GET /api/v1/auth/google` - Initiate Google OAuth flow (redirects to Google)
+- `GET /api/v1/auth/google/callback` - Handle Google OAuth callback (returns tokens via redirect)
+
 ### Users
 
 - `GET /api/v1/users` - List users (with pagination and filtering)
@@ -46,6 +51,14 @@ User Service
 - `GET /api/v1/users/{uid}/devices` - List user devices
 - `DELETE /api/v1/users/{uid}/devices/{deviceUid}` - Revoke device
 
+### Files
+
+- `GET /api/v1/files` - List user files with pagination
+- `GET /api/v1/files/{uid}` - Get single file details
+- `POST /api/v1/files` - Upload file (multipart/form-data, max 10MB)
+- `PATCH /api/v1/files/{uid}` - Update file (name, visibility)
+- `DELETE /api/v1/files/{uid}` - Delete file
+
 ### Health Check
 
 - `GET /health` - Health check endpoint
@@ -58,6 +71,7 @@ The API Gateway is configured via environment variables:
 |----------|-------------|---------|
 | `USER_SERVICE_ADDRESS` | Address of the user gRPC service | `localhost:50051` |
 | `SERVER_PORT` | HTTP server port | `8080` |
+| `FRONTEND_REDIRECT_URI` | Frontend URL for OAuth callback | `http://localhost:3000` |
 
 ## Running Locally
 
@@ -141,4 +155,41 @@ curl http://localhost:8080/api/v1/users?page=1&limit=10
 
 ```bash
 curl http://localhost:8080/api/v1/users/{uid}/profile
+```
+
+### Google OAuth
+
+```bash
+# Initiate OAuth flow (opens browser)
+curl -L http://localhost:8080/api/v1/auth/google
+
+# After callback, tokens are returned via redirect to FRONTEND_REDIRECT_URI
+# Example: http://localhost:3000/auth/callback?access_token=xxx&refresh_token=yyy
+```
+
+### List files
+
+```bash
+curl http://localhost:8080/api/v1/files?page=1&limit=10
+```
+
+### Upload file
+
+```bash
+curl -X POST http://localhost:8080/api/v1/files \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
+  -F "file=@/path/to/file.jpg" \
+  -F "visibility=0"
+```
+
+### Update file
+
+```bash
+curl -X PATCH http://localhost:8080/api/v1/files/{uid} \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "file_name": "updated-name.jpg",
+    "visibility": 1
+  }'
 ```
